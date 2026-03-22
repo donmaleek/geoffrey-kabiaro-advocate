@@ -1,0 +1,151 @@
+import OpenAI from 'openai';
+import { ICase } from '../models/Case';
+import { logger } from '../utils/logger';
+
+class AILegalService {
+  private openai: OpenAI;
+
+  constructor() {
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+
+  async predictCaseOutcome(caseData: Partial<ICase>): Promise<{
+    successProbability: number;
+    estimatedDuration: number;
+    factors: string[];
+    recommendations: string[];
+  }> {
+    try {
+      const prompt = `
+        Analyze this Kenyan legal case and predict the outcome:
+        Case Type: ${caseData.type}
+        Title: ${caseData.title}
+        Priority: ${caseData.priority}
+        Court: ${caseData.court || 'Not specified'}
+        Judge: ${caseData.judge || 'Not specified'}
+
+        Based on Kenyan legal precedents and court statistics, provide:
+        1. Success probability (0-100%)
+        2. Estimated duration in days
+        3. Key factors affecting the case
+        4. Strategic recommendations
+
+        Format as JSON.
+      `;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are a legal AI assistant specializing in Kenyan law. Provide accurate, data-driven predictions based on Kenyan legal precedents."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      });
+
+      const result = JSON.parse(completion.choices[0].message.content || '{}');
+      
+      return {
+        successProbability: result.successProbability || 50,
+        estimatedDuration: result.estimatedDuration || 180,
+        factors: result.factors || [],
+        recommendations: result.recommendations || []
+      };
+    } catch (error) {
+      logger.error('AI prediction failed:', error);
+      throw new Error('Failed to generate AI prediction');
+    }
+  }
+
+  async legalHealthCheck(answers: Record<string, any>): Promise<{
+    riskScore: number;
+    risks: string[];
+    recommendations: string[];
+    requiredDocuments: string[];
+  }> {
+    const prompt = `
+      Based on these answers about a Kenyan client's legal status:
+      ${JSON.stringify(answers, null, 2)}
+
+      Provide a legal health check analysis including:
+      1. Risk score (0-100)
+      2. List of identified risks
+      3. Specific recommendations
+      4. Required documents to address these risks
+
+      Format as JSON.
+    `;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are a legal risk assessment AI for Kenyan law. Provide comprehensive analysis for individuals and businesses."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.4,
+        response_format: { type: "json_object" }
+      });
+
+      return JSON.parse(completion.choices[0].message.content || '{}');
+    } catch (error) {
+      logger.error('Legal health check failed:', error);
+      throw new Error('Failed to perform legal health check');
+    }
+  }
+
+  async generateLegalDocument(template: string, data: Record<string, any>): Promise<string> {
+    const prompt = `
+      Generate a legally binding Kenyan legal document using this template: ${template}
+      
+      Data to populate:
+      ${JSON.stringify(data, null, 2)}
+      
+      Ensure the document:
+      1. Complies with Kenyan laws (Companies Act, Land Act, etc.)
+      2. Includes all necessary legal clauses
+      3. Is properly formatted for legal use
+      4. Includes placeholders for signatures
+      
+      Return the complete document text.
+    `;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are a legal document generator specializing in Kenyan law. Create professional, legally compliant documents."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.2
+      });
+
+      return completion.choices[0].message.content || '';
+    } catch (error) {
+      logger.error('Document generation failed:', error);
+      throw new Error('Failed to generate legal document');
+    }
+  }
+}
+
+export default AILegalService;

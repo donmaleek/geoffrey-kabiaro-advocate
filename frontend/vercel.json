@@ -1,0 +1,10 @@
+{
+  "name": "geoffrey-kabiaro-advocate",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["fra1"],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://api.geoffreykabiaro.co.ke/api"
+  }
+}
